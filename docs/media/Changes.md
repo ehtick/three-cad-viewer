@@ -1,5 +1,9 @@
 # Change log
 
+## v5.0.1
+
+- **Fix trackball view-flip after prolonged rotation** (holroyd mode). The camera quaternion was not renormalized after each rotation, so its norm slowly drifted below 1 (a positive-feedback loop, since a sub-unit quaternion scales the next frame's rotation axis). After enough continuous dragging the view began snapping in large single-frame jumps, eventually flipping ~180°. The quaternion is now normalized after every rotation, so the norm stays exactly 1. Only affected the trackball control with holroyd (the default `orbit` control was unaffected).
+
 ## v5.0.0
 
 Major release — the picking/selection architecture has been rewritten internally.
