@@ -386,6 +386,56 @@ describe("CADTrackballControls", () => {
     });
   });
 
+  describe("quaternion normalization (view-flip regression)", () => {
+    // Holroyd rotation premultiplies object.quaternion every frame and skips the
+    // lookAt() that renormalizes stock TrackballControls. Without an explicit
+    // normalize() the norm drifts below 1 (a positive-feedback loop, because the
+    // sub-unit quaternion scales the next frame's rotation axis by |q|^2), which
+    // after enough dragging erupts into ~180deg single-frame view flips.
+    // See CADTrackballControls._rotateCamera. This drives many small drags and
+    // asserts the quaternion stays unit and no frame rotates wildly.
+    function holroydDrag(c, cam, x0, y0, dx, dy, steps = 4) {
+      const down = new PointerEvent("pointerdown", { button: 0 });
+      Object.defineProperty(down, "pageX", { value: x0 });
+      Object.defineProperty(down, "pageY", { value: y0 });
+      domElement.dispatchEvent(down);
+      for (let i = 1; i <= steps; i++) {
+        const mv = new PointerEvent("pointermove", {});
+        Object.defineProperty(mv, "pageX", { value: x0 + (dx * i) / steps });
+        Object.defineProperty(mv, "pageY", { value: y0 + (dy * i) / steps });
+        domElement.dispatchEvent(mv);
+      }
+      domElement.dispatchEvent(new PointerEvent("pointerup"));
+    }
+
+    test("quaternion stays unit and rotation bounded over many drags", () => {
+      controls = new CADTrackballControls(camera, domElement);
+      controls.holroyd = true;
+      controls.target.set(0, 0, 0);
+
+      let seed = 12345;
+      const rnd = () => {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        return seed / 0x7fffffff;
+      };
+
+      let minNorm = 1;
+      for (let d = 0; d < 1500; d++) {
+        const x0 = 100 + rnd() * 600;
+        const y0 = 100 + rnd() * 400;
+        holroydDrag(camera, controls, x0, y0, (rnd() - 0.5) * 300, (rnd() - 0.5) * 300);
+        minNorm = Math.min(minNorm, camera.quaternion.length());
+      }
+
+      // As shipped (no normalize) the norm collapses well below 1 within ~1000
+      // drags (measured ~0.98 at 1000, ~0.19 at 2000) and the view starts
+      // flipping. With the normalize() the quaternion never leaves the unit
+      // sphere, so no flip is possible.
+      expect(minNorm).toBeCloseTo(1, 6);
+      expect(camera.quaternion.length()).toBeCloseTo(1, 6);
+    });
+  });
+
   describe("dispose", () => {
     test("removes event listeners", () => {
       controls = new CADTrackballControls(camera, domElement);

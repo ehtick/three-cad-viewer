@@ -483,6 +483,14 @@ class CADTrackballControls extends TrackballControls {
 
       // Apply rotation via premultiplication (world-space rotation)
       this.object.quaternion.premultiply(_quaternion);
+      // Renormalize: holroyd mode skips the lookAt() that renormalizes stock
+      // TrackballControls every frame, so the accumulated premultiply()s would
+      // otherwise let the quaternion norm drift below 1. A sub-unit quaternion
+      // makes line above's `_axis.applyQuaternion(this.object.quaternion)` scale
+      // the axis by |q|^2 < 1, which shrinks the norm further next frame — a
+      // positive-feedback loop that, after enough dragging, erupts into ~180deg
+      // single-frame view flips. One normalize() per rotation keeps it unit.
+      this.object.quaternion.normalize();
       this._eye.applyQuaternion(_quaternion);
     }
 
