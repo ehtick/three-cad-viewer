@@ -7,6 +7,7 @@ import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 import * as THREE from "three";
 import { NestedGroup, ObjectGroup } from "../../src/scene/nestedgroup.js";
 import { PICK_LAYER } from "../../src/rendering/id-picking.js";
+import { hoverStatusText } from "../../src/tools/cad_tools/mesh-measure.js";
 
 // Helper to create minimal shape data for testing
 function createMinimalShapeData() {
@@ -1807,5 +1808,109 @@ describe("NestedGroup - component highlight (Phase 3)", () => {
     ng.render();
     const data = ng.highlight.stateTexture.image.data;
     expect(data.length).toBeGreaterThanOrEqual(ng.registry.maxId + 1);
+  });
+});
+
+// A standalone edges node (`type: "edges"`) carries `edge_types` just like a solid.
+// It used to be dropped when registering the node with the internal measurement
+// backend, so every standalone edge resolved to geom type -1 ("other") and a
+// circle/arc lost its center + radius readout in the hover status line.
+describe("NestedGroup - standalone edges keep edge_types for the mesh backend", () => {
+  // Quarter arc of radius 5 around the origin in the XY plane, as segment pairs.
+  function arcEdges(segments = 8, radius = 5) {
+    const pts = [];
+    for (let i = 0; i <= segments; i++) {
+      const a = (Math.PI / 2) * (i / segments);
+      pts.push([radius * Math.cos(a), radius * Math.sin(a), 0]);
+    }
+    const flat = [];
+    for (let i = 0; i < segments; i++) {
+      flat.push(...pts[i], ...pts[i + 1]);
+    }
+    return { flat, segments };
+  }
+
+  function arcShapes() {
+    const { flat, segments } = arcEdges();
+    return {
+      id: "root",
+      name: "TestRoot",
+      loc: [
+        [0, 0, 0],
+        [0, 0, 0, 1],
+      ],
+      parts: [
+        {
+          id: "arc",
+          name: "Arc",
+          type: "edges",
+          color: 0x000000,
+          width: 1,
+          state: [1, 1],
+          shape: {
+            edges: flat,
+            segments_per_edge: [segments],
+            obj_vertices: [5, 0, 0, 0, 5, 0],
+            edge_types: [1], // GeomAbs_Circle
+          },
+          geomtype: "edge",
+        },
+      ],
+    };
+  }
+
+  function makeNG(shapes) {
+    return new NestedGroup(
+      shapes,
+      800,
+      600,
+      0x707070,
+      false,
+      0.5,
+      0.3,
+      0.65,
+      0,
+      100,
+    );
+  }
+
+  test("resolve() reports the OCP curve type of a standalone edge", () => {
+    const ng = makeNG(arcShapes());
+    ng.assignIds = true;
+    ng.render();
+
+    const geom = ng.meshGeometry.resolve("arc/edges/edges_0");
+    expect(geom).not.toBeNull();
+    expect(geom.topo).toBe("edge");
+    expect(geom.geomType).toBe(1); // Circle, not -1 ("other")
+  });
+
+  test("hover status of a standalone arc shows radius and center", () => {
+    const ng = makeNG(arcShapes());
+    ng.assignIds = true;
+    ng.render();
+
+    const info = {
+      id: 1,
+      path: "arc/edges/edges_0",
+      name: "edges_0",
+      topo: "edge",
+      subtype: null,
+      solidPath: null,
+    };
+    const text = hoverStatusText(info, false, ng.meshGeometry);
+    expect(text).toMatch(/^circle: /);
+    expect(text).toContain("r ≈ 5.00");
+    expect(text).toContain("c ≈ (0.00, 0.00, 0.00)");
+    // an arc (start !== end) keeps its endpoints
+    expect(text).toContain("start=(5.00, 0.00, 0.00)");
+    expect(text).toContain("end=(0.00, 5.00, 0.00)");
+  });
+
+  test("nodeCounts() sees the standalone node's edges", () => {
+    const ng = makeNG(arcShapes());
+    ng.assignIds = true;
+    ng.render();
+    expect(ng.meshGeometry.nodeCounts("arc")).toEqual({ faces: 0, edges: 1 });
   });
 });
