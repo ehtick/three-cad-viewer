@@ -87606,11 +87606,14 @@ class NestedGroup {
             // widen + recolor the flagged segment in-shader (Option A).
             this.highlight?.patchEdgeMaterial(edges.material);
             // Internal measurement backend: record the standalone edge node's geometry
-            // (obj_vertices lets the hover status resolve a picked corner's coords).
+            // (obj_vertices lets the hover status resolve a picked corner's coords,
+            // edge_types the exact curve type — without it every edge reads as "other"
+            // and a circle/arc loses its center + radius readout).
             this.meshGeometry.register(path, {
                 edges: edgeData.edges,
                 segments_per_edge: edgeData.segments_per_edge,
                 obj_vertices: edgeData.obj_vertices,
+                edge_types: edgeData.edge_types,
             }, group, null);
         }
         group.setEdges(edges);
@@ -97308,7 +97311,7 @@ class Tools {
     }
 }
 
-const version = "5.0.1";
+const version = "5.0.2";
 
 /**
  * `PickedComponent` over a GPU id-pick result. Drives the shader

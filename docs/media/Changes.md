@@ -1,5 +1,9 @@
 # Change log
 
+## v5.0.2
+
+- **Fix wrong edge types for standalone edge types** in the mesh measurement code and as such in the status bar
+
 ## v5.0.1
 
 - **Fix trackball view-flip after prolonged rotation** (holroyd mode). The camera quaternion was not renormalized after each rotation, so its norm slowly drifted below 1 (a positive-feedback loop, since a sub-unit quaternion scales the next frame's rotation axis). After enough continuous dragging the view began snapping in large single-frame jumps, eventually flipping ~180°. The quaternion is now normalized after every rotation, so the norm stays exactly 1. Only affected the trackball control with holroyd (the default `orbit` control was unaffected).
