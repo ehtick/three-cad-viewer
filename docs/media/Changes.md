@@ -2,7 +2,7 @@
 
 ## v5.0.2
 
-- **Fix wrong edge types for standalone edge types** in the mesh measurement code and as such in the status bar
+- **Fix wrong edge types for standalone edges** in the mesh measurement code and as such in the status bar
 
 ## v5.0.1
 
