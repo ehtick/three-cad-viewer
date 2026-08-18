@@ -1,5 +1,10 @@
 # Change log
 
+## v5.0.3
+
+- **Split `decodeInstancedFormat` into two exported steps**: `decodeBuffers` (base64 → typed arrays) and `resolveInstances` (replace `{ref: n}` leaves with the decoded shapes). A host that receives its geometry as raw binary instead of base64 can now skip the decode step and call `resolveInstances` directly; `decodeInstancedFormat` is unchanged and remains the composition of the two.
+- **Fix grid label size not adapting on CAD view resize**: `resizeCadView` never triggered the grid's label rescale and the grid kept using its construction-time canvas dimensions, so the tick labels grew/shrank with the view instead of keeping a constant on-screen size.
+
 ## v5.0.2
 
 - **Fix wrong edge types for standalone edges** in the mesh measurement code and as such in the status bar

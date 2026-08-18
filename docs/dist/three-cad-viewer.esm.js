@@ -88614,11 +88614,7 @@ class Grid extends Group {
         this.getCamera = getCamera;
         this.getAxes0 = getAxes0;
         this.onGridChange = onGridChange || null;
-        // Heuristics, experimentally determined
-        const size = bbox.max_dist_from_center();
-        const canvasSize = Math.min(cadWidth, height);
-        const scale = Math.max(1.0, 6 - Math.log2(canvasSize / 100));
-        this.minFontIndex = Math.round((size < 2 ? 6 : size < 1000 ? 5 : 3) * scale);
+        this.minFontIndex = this.computeMinFontIndex();
         this.minZoomIndex = -4;
         this.zoomMaxIndex = 5;
         this.canvasHeight = 128; // Fixed height for all label textures (higher = crisper)
@@ -88641,6 +88637,27 @@ class Grid extends Group {
             ],
         };
         this.create();
+    }
+    /**
+     * Heuristics, experimentally determined
+     */
+    computeMinFontIndex() {
+        const size = this.bbox.max_dist_from_center();
+        const canvasSize = Math.min(this.cadWidth, this.height);
+        const scale = Math.max(1.0, 6 - Math.log2(canvasSize / 100));
+        return Math.round((size < 2 ? 6 : size < 1000 ? 5 : 3) * scale);
+    }
+    /**
+     * Update the cached canvas dimensions after the CAD view was resized.
+     * The label scale is derived from these (see calculateTextScale), so the
+     * caller must rescale afterwards via scaleLabels() / update(zoom, true).
+     * @param cadWidth - New width of the CAD view in pixels
+     * @param height - New height of the CAD view in pixels
+     */
+    resize(cadWidth, height) {
+        this.cadWidth = cadWidth;
+        this.height = height;
+        this.minFontIndex = this.computeMinFontIndex();
     }
     /**
      * Calculate text scale based on camera mode and canvas size
@@ -112494,6 +112511,13 @@ class Viewer {
         // Adapt camera to new dimensions
         this.rendered.camera.changeDimensions(this.bb_radius, cadWidth, height);
         this.controls.handleResize();
+        // Rescale the grid labels explicitly: their size is derived from the
+        // canvas height (and, for ortho, the frustum), both of which just
+        // changed — but a resize alone never trips the zoom-based rescale gate
+        // in Grid.update().
+        this.rendered.gridHelper.resize(cadWidth, height);
+        this.rendered.gridHelper.scaleLabels();
+        this.rendered.gridHelper.update(this.rendered.camera.getZoom(), true);
         // Resize the post-processing composer (render targets must match viewport)
         this._studioManager.setSize(cadWidth, height);
         // update the this
