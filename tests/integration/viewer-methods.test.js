@@ -1514,6 +1514,30 @@ describe("Viewer - Resize & Pin", () => {
     viewer.resizeCadView(1024, 768);
     // Just verify it can be called without throwing
   });
+
+  test("resizeCadView rescales grid labels", async () => {
+    testContext = setupViewer();
+    const { viewer, renderOptions, viewerOptions } = testContext;
+
+    const box1Data = await loadExample("box1");
+    viewer.render(box1Data, renderOptions, viewerOptions);
+
+    const grid = viewer.gridHelper;
+    const label = grid.children
+      .flatMap((group) => group.children)
+      .find((child) => child.isSprite);
+    expect(label).toBeDefined();
+    const scaleBefore = label.scale.y;
+
+    // Double the canvas height; the ortho frustum height stays the same, so
+    // keeping the labels at a constant on-screen size requires a smaller
+    // world-space sprite scale.
+    viewer.resizeCadView(800, 250, 1200);
+
+    expect(grid.cadWidth).toBe(800);
+    expect(grid.height).toBe(1200);
+    expect(label.scale.y).toBeLessThan(scaleBefore);
+  });
 });
 
 // =============================================================================

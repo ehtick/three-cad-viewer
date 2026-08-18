@@ -4638,6 +4638,14 @@ class Viewer {
     this.rendered.camera.changeDimensions(this.bb_radius, cadWidth, height);
     this.controls.handleResize();
 
+    // Rescale the grid labels explicitly: their size is derived from the
+    // canvas height (and, for ortho, the frustum), both of which just
+    // changed — but a resize alone never trips the zoom-based rescale gate
+    // in Grid.update().
+    this.rendered.gridHelper.resize(cadWidth, height);
+    this.rendered.gridHelper.scaleLabels();
+    this.rendered.gridHelper.update(this.rendered.camera.getZoom(), true);
+
     // Resize the post-processing composer (render targets must match viewport)
     this._studioManager.setSize(cadWidth, height);
 
