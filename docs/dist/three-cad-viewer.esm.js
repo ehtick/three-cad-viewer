@@ -97328,7 +97328,7 @@ class Tools {
     }
 }
 
-const version = "5.0.3";
+const version = "5.0.4";
 
 /**
  * `PickedComponent` over a GPU id-pick result. Drives the shader
@@ -112446,7 +112446,14 @@ class Viewer {
             KeyMapper.set(modifiers);
             this.display.updateHelp(before, modifiers);
         }
-        KeyMapper.setActionShortcuts(actions);
+        if (Object.keys(actions).length > 0) {
+            // Merge over the existing table: a partial config (e.g. modifiers only)
+            // must not wipe the action shortcuts
+            KeyMapper.setActionShortcuts({
+                ...KeyMapper.getActionShortcuts(),
+                ...actions,
+            });
+        }
         this.display.updateTooltips();
     }
     // ---------------------------------------------------------------------------
