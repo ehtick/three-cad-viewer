@@ -11,6 +11,7 @@ import {
   getDisplayOptions,
 } from "../helpers/setup.js";
 import { loadExample } from "../helpers/snapshot.js";
+import { KeyMapper } from "../../src/utils/utils.js";
 
 // =============================================================================
 // VIEWER STATE MANAGEMENT TESTS
@@ -966,6 +967,29 @@ describe("Viewer - Key Mapping", () => {
 
     viewer.setKeyMap(newKeymap);
     // Should not throw
+  });
+
+  test("setKeyMap with a modifiers-only map keeps the action shortcuts", () => {
+    testContext = setupViewer();
+    const { viewer } = testContext;
+
+    viewer.setKeyMap({ shift: "shiftKey" });
+
+    expect(KeyMapper.getActionForKey(" ")).toBe("play");
+    expect(KeyMapper.getActionForKey("Escape")).toBe("stop");
+    expect(KeyMapper.getShortcutForAction("help")).toBe("h");
+  });
+
+  test("setKeyMap merges named actions over the existing table", () => {
+    testContext = setupViewer();
+    const { viewer } = testContext;
+
+    viewer.setKeyMap({ help: "?" });
+
+    expect(KeyMapper.getShortcutForAction("help")).toBe("?");
+    expect(KeyMapper.getActionForKey("?")).toBe("help");
+    // Unnamed actions survive
+    expect(KeyMapper.getActionForKey(" ")).toBe("play");
   });
 
   test("setPickHandler enables/disables pick handler", async () => {
