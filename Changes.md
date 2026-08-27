@@ -1,5 +1,9 @@
 # Change log
 
+## v5.0.4
+
+- **Fix `setKeyMap` wiping the action shortcuts on a partial keymap**: `setKeyMap` split its argument into modifier keys and action shortcuts, merged the modifiers per key, but *replaced* the whole action-shortcut table unconditionally. A config carrying only modifier entries (e.g. a host letting users remap shift/ctrl/meta/alt at runtime) therefore cleared every keyboard shortcut (space, Escape, x, r, R, h, 1-8, tab keys) until a new viewer was constructed. Named actions now merge over the existing table, mirroring the modifier behavior; a modifiers-only map leaves the actions untouched.
+
 ## v5.0.3
 
 - **Split `decodeInstancedFormat` into two exported steps**: `decodeBuffers` (base64 → typed arrays) and `resolveInstances` (replace `{ref: n}` leaves with the decoded shapes). A host that receives its geometry as raw binary instead of base64 can now skip the decode step and call `resolveInstances` directly; `decodeInstancedFormat` is unchanged and remains the composition of the two.
