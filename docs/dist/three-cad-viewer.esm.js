@@ -82235,6 +82235,7 @@ class ObjectGroup extends Group {
         this._cadOriginalBackColor = null;
         this._isStudioMode = false;
         this._cadEdgesVisible = null;
+        this._cadVerticesVisible = null;
     }
     /**
      * Get the zebra tool, creating it on first access.
@@ -82276,6 +82277,7 @@ class ObjectGroup extends Group {
         this._cadOriginalBackColor = null;
         this._isStudioMode = false;
         this._cadEdgesVisible = null;
+        this._cadVerticesVisible = null;
     }
     /**
      * Set the front face mesh.
@@ -82631,7 +82633,13 @@ class ObjectGroup extends Group {
             }
         }
         if (this.vertices) {
-            this.vertices.material.visible = flag;
+            if (this._isStudioMode) {
+                // Same rule as edges: Studio hides vertices, record the CAD intent only.
+                this._cadVerticesVisible = flag;
+            }
+            else {
+                this.vertices.material.visible = flag;
+            }
         }
         this._syncPickVertices();
     }
@@ -82840,9 +82848,13 @@ class ObjectGroup extends Group {
         this._cadOriginalBackColor = this.originalBackColor
             ? this.originalBackColor.clone()
             : null;
-        // Save edge visibility state
+        // Save edge and vertex visibility state (also for edge-only / vertex-only
+        // groups, which have no front mesh and get no studio material)
         this._cadEdgesVisible = this.edgeMaterial
             ? this.edgeMaterial.visible
+            : null;
+        this._cadVerticesVisible = this.vertices
+            ? this.vertices.material.visible
             : null;
         // --- Swap front material ---
         if (this.front && studioFront) {
@@ -82897,23 +82909,29 @@ class ObjectGroup extends Group {
         if (this._cadOriginalBackColor) {
             this.originalBackColor = this._cadOriginalBackColor.clone();
         }
-        // --- Restore edge visibility ---
+        // --- Restore edge and vertex visibility ---
         if (this.edgeMaterial && this._cadEdgesVisible !== null) {
             this.edgeMaterial.visible = this._cadEdgesVisible;
+        }
+        if (this.vertices && this._cadVerticesVisible !== null) {
+            this.vertices.material.visible = this._cadVerticesVisible;
         }
         this._isStudioMode = false;
     }
     /**
-     * Toggle edge visibility while in Studio mode.
+     * Toggle edge and vertex visibility while in Studio mode.
      *
-     * Only affects edges (not vertices). Should only be called while in
-     * Studio mode; the saved CAD edge visibility is not affected.
+     * Should only be called while in Studio mode; the saved CAD edge/vertex
+     * visibility is not affected and is restored by `leaveStudioMode()`.
      *
-     * @param visible - Whether edges should be visible
+     * @param visible - Whether edges and vertices should be visible
      */
     setStudioShowEdges(visible) {
         if (this.edgeMaterial) {
             this.edgeMaterial.visible = visible;
+        }
+        if (this.vertices) {
+            this.vertices.material.visible = visible;
         }
     }
 }
@@ -88252,13 +88270,17 @@ class NestedGroup {
         }
         // Track material tags that failed to resolve
         const unresolvedTags = new Set();
-        // Iterate all ObjectGroups with front meshes
         for (const path in this.groups) {
             const obj = this.groups[path];
             if (!(obj instanceof ObjectGroup))
                 continue;
-            if (!obj.front)
+            if (!obj.front) {
+                // Edge-only / vertex-only group: no studio material, but it must still
+                // enter studio mode so its CAD edge/vertex visibility is saved and
+                // restored on leave (setStudioShowEdges hides both in studio).
+                obj.enterStudioMode(null, null);
                 continue;
+            }
             // Determine material tag, leaf color, and leaf alpha
             const tag = obj.materialTag || "";
             const leafColor = obj.originalColor
@@ -97328,7 +97350,7 @@ class Tools {
     }
 }
 
-const version = "5.0.4";
+const version = "5.0.5";
 
 /**
  * `PickedComponent` over a GPU id-pick result. Drives the shader
@@ -113365,6 +113387,8 @@ class Display {
         /**
          * Checkbox Handler for setting the tools mode.
          * Delegates state mutations to Viewer.activateTool() to maintain unidirectional data flow.
+         * The active tab is left untouched: a measure/select tool can run on any tab,
+         * including Clip, so a sectioned model can be measured.
          */
         this.setTool = (name, flag) => {
             // Block tool activation while Studio mode is active
@@ -113372,15 +113396,9 @@ class Display {
                 return;
             }
             this.viewer.toggleAnimationLoop(flag);
-            const activeTool = this.state.get("activeTool");
-            const currentTool = typeof activeTool === "string" ? activeTool : "";
             if (flag) {
                 // Delegate state mutations to Viewer
                 this.viewer.activateTool(name, true);
-                if (["distance", "properties", "select"].includes(name) &&
-                    !["distance", "properties", "select"].includes(currentTool)) {
-                    this.viewer.toggleTab(true);
-                }
                 this.viewer.setSelectionInput(flag);
                 if (name === "distance") {
                     this.viewer.cadTools.enable(ToolTypes.DISTANCE);
@@ -113396,9 +113414,6 @@ class Display {
                 }
             }
             else {
-                if (currentTool === name || name === "explode") {
-                    this.viewer.toggleTab(false);
-                }
                 if (name === "distance") {
                     this.viewer.cadTools.disable();
                 }
@@ -114944,9 +114959,6 @@ class Display {
             ["distance", "properties", "select"].includes(activeTool)) {
             this.clickButtons[activeTool]?.set(false);
             this.setTool(activeTool, false);
-            // setTool→toggleTab(false) silently sets activeTab to "tree" (no notification).
-            // Restore to "studio" so the next tab click correctly detects Studio as oldTab.
-            this.state.set("activeTab", "studio", false);
         }
         // Hide tool buttons
         this.showMeasureTools(false);
@@ -114959,22 +114971,6 @@ class Display {
      * @internal
      */
     _restoreToolsAfterStudio() {
-        this.showMeasureTools(this.measureTools);
-        this.showSelectTool(this.selectTool);
-    }
-    /**
-     * Entering Clip mode: hide the measure + select tool buttons (a measure/select
-     * tool can't be active here — it disables the clip tab — but the buttons must not
-     * be invocable while clipping). Mirrors {@link _deactivateToolsForStudio};
-     * explode/zscale stay enabled for consistency with studio mode. Restored by
-     * {@link _restoreToolsAfterClip} on leave.
-     */
-    _deactivateToolsForClip() {
-        this.showMeasureTools(false);
-        this.showSelectTool(false);
-    }
-    /** Leaving Clip mode: restore measure + select buttons per their feature flags. */
-    _restoreToolsAfterClip() {
         this.showMeasureTools(this.measureTools);
         this.showSelectTool(this.selectTool);
     }
@@ -114996,9 +114992,6 @@ class Display {
         // before the new tab's controls are activated.
         if (oldTab === "zebra" && newTab !== "zebra") {
             this.viewer.enableZebraTool(false);
-        }
-        if (oldTab === "clip" && newTab !== "clip") {
-            this._restoreToolsAfterClip();
         }
         if (oldTab === "studio" && newTab !== "studio") {
             this.closeMatEditor();
@@ -115038,7 +115031,6 @@ class Display {
         }
         else if (newTab === "clip") {
             _updateVisibility(false, true, false, false, false);
-            this._deactivateToolsForClip();
             this.viewer.nestedGroup.setBackVisible(true);
             const clipIntersection = this.viewer.state.get("clipIntersection");
             if (typeof clipIntersection === "boolean") {
