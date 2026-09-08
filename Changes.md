@@ -3,6 +3,7 @@
 ## v5.0.5
 
 - **Measure and select tools work in Clip mode**: selecting the Clip tab no longer hides the measure (distance, properties) and select tool buttons, and activating one of these tools no longer forces the Tree tab or disables the Clip tab. The active tab is left untouched, so a sectioned model can be measured; the tool button visibility is governed only by the `measureTools`/`selectTool` options (Studio mode is unchanged and still hides them). This also fixes a stuck UI where activating a tool on the Clip tab grayed the Clip tab without switching panels, and the Tree tab could not be selected afterwards.
+- **Fix standalone edges and vertices in Studio mode**: shapes consisting only of edges or only of vertices (no faces) were skipped when entering Studio, so their visibility was never saved. Standalone edges were hidden in Studio (correct) but stayed hidden after switching back to CAD mode; standalone vertices were never hidden in Studio at all. Both now hide in Studio, like the edges of solids, and come back with their previous visibility on leave.
 
 ## v5.0.4
 

@@ -1535,11 +1535,16 @@ class NestedGroup {
     // Track material tags that failed to resolve
     const unresolvedTags = new Set<string>();
 
-    // Iterate all ObjectGroups with front meshes
     for (const path in this.groups) {
       const obj = this.groups[path];
       if (!(obj instanceof ObjectGroup)) continue;
-      if (!obj.front) continue;
+      if (!obj.front) {
+        // Edge-only / vertex-only group: no studio material, but it must still
+        // enter studio mode so its CAD edge/vertex visibility is saved and
+        // restored on leave (setStudioShowEdges hides both in studio).
+        obj.enterStudioMode(null, null);
+        continue;
+      }
 
       // Determine material tag, leaf color, and leaf alpha
       const tag = obj.materialTag || "";

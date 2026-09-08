@@ -969,3 +969,43 @@ describe("ObjectGroup - studio edge visibility (cmd-hide regression)", () => {
     expect(group.edgeMaterial.visible).toBe(true); // restored to entry value
   });
 });
+
+describe("ObjectGroup - studio vertex visibility", () => {
+  test("setStudioShowEdges(false) hides standalone vertices in studio", () => {
+    const group = createObjectGroupWithVertices();
+    expect(group.vertices.material.visible).toBe(true);
+
+    group.enterStudioMode(null, null);
+    group.setStudioShowEdges(false);
+    expect(group.vertices.material.visible).toBe(false);
+  });
+
+  test("untouched vertex visibility is restored after leaving studio", () => {
+    const group = createObjectGroupWithVertices();
+    group.enterStudioMode(null, null);
+    group.setStudioShowEdges(false);
+    group.leaveStudioMode();
+    expect(group.vertices.material.visible).toBe(true);
+  });
+
+  test("hiding vertices during studio is preserved after leaving studio", () => {
+    const group = createObjectGroupWithVertices();
+    group.enterStudioMode(null, null);
+    group.setStudioShowEdges(false);
+    group.setEdgesVisible(false); // CAD intent recorded, studio look untouched
+    expect(group.vertices.material.visible).toBe(false);
+    group.leaveStudioMode();
+    expect(group.vertices.material.visible).toBe(false);
+  });
+
+  test("showing vertices during studio does not un-hide them until leave", () => {
+    const group = createObjectGroupWithVertices();
+    group.setEdgesVisible(false);
+    group.enterStudioMode(null, null);
+    group.setStudioShowEdges(false);
+    group.setEdgesVisible(true);
+    expect(group.vertices.material.visible).toBe(false);
+    group.leaveStudioMode();
+    expect(group.vertices.material.visible).toBe(true);
+  });
+});
