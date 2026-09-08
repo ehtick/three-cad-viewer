@@ -13,6 +13,7 @@ import {
   getDisplayOptions,
 } from "../helpers/setup.js";
 import { Display } from "../../src/ui/display.js";
+import { loadExample } from "../helpers/snapshot.js";
 
 // =============================================================================
 // MOCK EVENT HELPERS
@@ -875,6 +876,92 @@ describe("Display - Tab Navigation", () => {
     // Create mock event with target class
     display.selectTab(createElementEvent("tcv_tab_clip tcv_tab-unselected"));
     expect(viewer.state.get("activeTab")).toBe("clip");
+  });
+
+  test("switching to clip tab keeps the measure and select tool buttons visible", () => {
+    testContext = setupViewer();
+    const { viewer, display } = testContext;
+
+    viewer._rendered = {
+      clipping: { setVisible: vi.fn() },
+      nestedGroup: {
+        setBackVisible: vi.fn(),
+        setClipIntersection: vi.fn(),
+        rootGroup: { children: [] },
+      },
+    };
+    viewer.setLocalClipping = vi.fn();
+    viewer.setClipPlaneHelpers = vi.fn();
+    viewer.setClipIntersection = vi.fn();
+    viewer.checkChanges = vi.fn();
+    viewer.update = vi.fn();
+
+    const buttons = ["distance", "properties", "select"].map(
+      (name) => display.clickButtons[name].html,
+    );
+    for (const html of buttons) {
+      expect(html.style.display).not.toBe("none");
+    }
+
+    display.selectTab(createElementEvent("tcv_tab_clip tcv_tab-unselected"));
+    expect(viewer.state.get("activeTab")).toBe("clip");
+    for (const html of buttons) {
+      expect(html.style.display).not.toBe("none");
+    }
+
+    display.selectTab(createElementEvent("tcv_tab_tree tcv_tab-unselected"));
+    expect(viewer.state.get("activeTab")).toBe("tree");
+    for (const html of buttons) {
+      expect(html.style.display).not.toBe("none");
+    }
+  });
+
+  test("activating a measure tool on the clip tab keeps clip mode active", async () => {
+    testContext = setupViewer();
+    const { viewer, display, renderOptions, viewerOptions } = testContext;
+    viewer.render(await loadExample("box1"), renderOptions, viewerOptions);
+
+    viewer.setActiveTab("clip");
+    expect(display.cadClip.style.display).toBe("block");
+
+    display.setTool("distance", true);
+    expect(viewer.state.get("activeTool")).toBe("distance");
+    expect(viewer.state.get("activeTab")).toBe("clip");
+    expect(display.cadClip.style.display).toBe("block");
+    expect(display.cadTree.style.display).toBe("none");
+    expect(display.tabClip.getAttribute("disabled")).toBeNull();
+    expect(display.tabClip.classList.contains("tcv_tab-disabled")).toBe(false);
+    expect(display.tabClip.classList.contains("tcv_tab-selected")).toBe(true);
+
+    display.setTool("distance", false);
+    expect(viewer.state.get("activeTool")).toBeNull();
+    expect(viewer.state.get("activeTab")).toBe("clip");
+    expect(display.cadClip.style.display).toBe("block");
+    expect(display.tabClip.getAttribute("disabled")).toBeNull();
+
+    // Leaving clip mode afterwards must still work
+    display.selectTab({ target: display.tabTree });
+    expect(viewer.state.get("activeTab")).toBe("tree");
+    expect(display.cadTree.style.display).toBe("block");
+    expect(display.cadClip.style.display).toBe("none");
+    expect(display.tabTree.classList.contains("tcv_tab-selected")).toBe(true);
+    expect(display.tabClip.classList.contains("tcv_tab-selected")).toBe(false);
+  });
+
+  test("switching to the clip tab with an active tool keeps the tool running", async () => {
+    testContext = setupViewer();
+    const { viewer, display, renderOptions, viewerOptions } = testContext;
+    viewer.render(await loadExample("box1"), renderOptions, viewerOptions);
+
+    expect(viewer.state.get("activeTab")).toBe("tree");
+    display.setTool("select", true);
+    expect(viewer.state.get("activeTool")).toBe("select");
+    expect(display.tabClip.getAttribute("disabled")).toBeNull();
+
+    display.selectTab({ target: display.tabClip });
+    expect(viewer.state.get("activeTab")).toBe("clip");
+    expect(display.cadClip.style.display).toBe("block");
+    expect(viewer.state.get("activeTool")).toBe("select");
   });
 
   test("switching to tree tab shows correct containers", () => {
