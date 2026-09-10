@@ -97350,7 +97350,7 @@ class Tools {
     }
 }
 
-const version = "5.0.5";
+const version = "5.0.6";
 
 /**
  * `PickedComponent` over a GPU id-pick result. Drives the shader
@@ -112526,12 +112526,21 @@ class Viewer {
         this.renderer.setSize(cadWidth, height);
         // Resize the id pick target to match the canvas
         this.idPicker?.setSize(cadWidth, height);
-        // Adapt display dimensions
+        // Adapt display dimensions. `glass` and `tools` are part of the sizes:
+        // setSizes widens the toolbar and the body by the tree only when the tree
+        // sits beside the canvas (`tools && !glass`), and updates the tree and
+        // info heights only outside glass mode. Leaving them out meant neither
+        // branch could ever be taken from a resize, so a non-glass viewer got a
+        // toolbar and a body of `cadWidth + 2` with a `treeWidth + cadWidth` row
+        // inside them - measured as a 550px toolbar over 802px of content - and a
+        // tree that kept its old height. `glassMode` passes both and was right.
         this.display.setSizes({
             treeWidth: treeWidth,
             treeHeight: this.state.get("treeHeight"),
             cadWidth: cadWidth,
             height: height,
+            glass: glass,
+            tools: this.state.get("tools"),
         });
         // Set glass state - subscription will update UI
         this.state.set("glass", glass);
