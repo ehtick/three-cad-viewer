@@ -1,5 +1,9 @@
 # Change log
 
+## v5.0.6
+
+- **Fix a resize sizing only the canvas**: `resizeCadView` called `display.setSizes` without `glass` and `tools`, but both pick branches there — the toolbar and the body are widened by the tree only when the tree sits beside the canvas (`tools && !glass`), and the tree and info heights are updated only outside glass mode. Neither branch could be taken from a resize, so a non-glass viewer ended up with a toolbar and a body of `cadWidth + 2` around a `treeWidth + cadWidth` row (measured in a Jupyter sidecar as a 550px toolbar over 802px of content, with the canvas clipped at the panel's edge) and a tree that kept its old height while the canvas grew. Glass mode was never affected, because `glassMode` passes both flags.
+
 ## v5.0.5
 
 - **Measure and select tools work in Clip mode**: selecting the Clip tab no longer hides the measure (distance, properties) and select tool buttons, and activating one of these tools no longer forces the Tree tab or disables the Clip tab. The active tab is left untouched, so a sectioned model can be measured; the tool button visibility is governed only by the `measureTools`/`selectTool` options (Studio mode is unchanged and still hides them). This also fixes a stuck UI where activating a tool on the Clip tab grayed the Clip tab without switching panels, and the Tree tab could not be selected afterwards.
