@@ -1539,6 +1539,27 @@ describe("Viewer - Resize & Pin", () => {
     // Just verify it can be called without throwing
   });
 
+  test("resizeCadView sizes toolbar and body for where the tree sits", async () => {
+    testContext = setupViewer();
+    const { viewer, display, renderOptions, viewerOptions } = testContext;
+
+    const box1Data = await loadExample("box1");
+    viewer.render(box1Data, renderOptions, viewerOptions);
+
+    // Outside glass mode the tree sits beside the canvas, so the row is as
+    // wide as both together and the toolbar above it has to span the same.
+    // A resize used to leave `glass` and `tools` out of setSizes, so this
+    // branch was unreachable from here and both stayed at cadWidth + 2.
+    viewer.resizeCadView(600, 250, 800, false);
+    expect(display.cadTool.container.style.width).toBe("854px");
+    expect(display.cadBody.style.width).toBe("854px");
+
+    // In glass mode the tree floats over the canvas: both are the canvas.
+    viewer.resizeCadView(600, 250, 800, true);
+    expect(display.cadTool.container.style.width).toBe("602px");
+    expect(display.cadBody.style.width).toBe("602px");
+  });
+
   test("resizeCadView rescales grid labels", async () => {
     testContext = setupViewer();
     const { viewer, renderOptions, viewerOptions } = testContext;
