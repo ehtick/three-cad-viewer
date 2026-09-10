@@ -506,7 +506,14 @@ class Grid extends THREE.Group {
       );
 
       let label: THREE.Sprite;
-      for (let x = -this.size / 2; x <= this.size / 2; x += this.delta / 2) {
+      // A grid of no size has no labels, and asking for them hangs the tab:
+      // `niceBounds` answers [0, 0, 0] for a bounding box whose largest extent
+      // is zero - which is what an empty model gives it - so `delta` is zero
+      // and the loop below steps by zero, never advancing and never throwing.
+      // Guarded here rather than in `niceBounds`, whose answer is right: there
+      // is nothing to place ticks on.
+      const step = this.delta / 2;
+      for (let x = -this.size / 2; step > 0 && x <= this.size / 2; x += step) {
         if (Math.abs(x) < 1e-6) {
           continue;
         } // skip center label
